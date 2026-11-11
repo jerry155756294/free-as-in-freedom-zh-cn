@@ -14,8 +14,10 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Verify Pandoc
+      - name: Install Pandoc
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pandoc
           pandoc --version
 
       - name: Flatten LaTeX includes
