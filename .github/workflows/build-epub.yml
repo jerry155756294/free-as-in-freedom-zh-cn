@@ -15,10 +15,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Pandoc
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends pandoc
-          pandoc --version
+        uses: pandoc/actions/setup@v1
+        with:
+          version: 3.8.3
 
       - name: Flatten LaTeX includes
         run: |
