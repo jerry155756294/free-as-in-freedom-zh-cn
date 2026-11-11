@@ -19,7 +19,7 @@ jobs:
         with:
           version: 3.8.3
 
-      - name: Flatten LaTeX includes
+      - name: Prepare Chinese source
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -32,29 +32,53 @@ jobs:
               text = path.read_text(encoding="utf-8")
 
               def replace_include(match):
-                  included = Path(match.group(1))
+                  included = path.parent / match.group(1)
                   if included.suffix != ".tex":
                       included = included.with_suffix(".tex")
                   return expand(included, stack + (path,))
 
-              text = re.sub(r"\\include\{([^}]+)\}", replace_include, text)
-              text = text.replace(r"\includegraphics{KL10_1979}", r"\includegraphics{KL10_1979.jpg}")
-              text = text.replace(r"\includegraphics{stignucius}", r"\includegraphics{stignucius.jpg}")
-              return text
+              return re.sub(r"\\include\{([^}]+)\}", replace_include, text)
 
-          Path("book-expanded.tex").write_text(expand(Path("faif-2.0.tex")), encoding="utf-8")
+          text = expand(Path("faif-2.0.tex"))
+          text = re.sub(r"\\ifdefined\\eng\b.*?\\fi", "", text, flags=re.S)
+          text = re.sub(r"\\ifdefined\\chs\b(.*?)\\fi", r"\1", text, flags=re.S)
+          text = text.replace(r"\includegraphics{KL10_1979}", r"\includegraphics{KL10_1979.jpg}")
+          text = text.replace(r"\includegraphics{stignucius}", r"\includegraphics{stignucius.jpg}")
+          if r"\ifdefined\eng" in text or r"\ifdefined\chs" in text:
+              raise RuntimeError("language conditionals were not fully resolved")
+          Path("book-chs.tex").write_text(text, encoding="utf-8")
           PY
-          test -s book-expanded.tex
+          cat > epub.css <<'CSS'
+          body {
+            font-family: "Noto Serif CJK SC", "Source Han Serif SC", serif;
+            line-height: 1.8;
+          }
+          h1, h2, h3, h4 {
+            line-height: 1.35;
+          }
+          p {
+            margin: 0 0 0.8em;
+            text-align: justify;
+            text-indent: 2em;
+          }
+          blockquote {
+            margin: 1em 1.5em;
+          }
+          CSS
+          test -s book-chs.tex
+          test -s epub.css
 
-      - name: Build EPUB
+      - name: Build Chinese EPUB
         run: |
-          pandoc book-expanded.tex \
+          pandoc book-chs.tex \
             --from=latex \
             --to=epub3 \
             --standalone \
             --toc \
-            --metadata 'title=Free as in Freedom 2.0: 理查德·斯托曼与自由软件运动' \
+            --css=epub.css \
+            --metadata 'title=自由如自由：理查德·斯托曼与自由软件运动' \
             --metadata 'author=萨姆·威廉姆斯；理查德·斯托曼' \
+            --metadata 'lang=zh-CN' \
             --resource-path=. \
             --output=free-as-in-freedom-zh-cn.epub
           test -s free-as-in-freedom-zh-cn.epub
