@@ -1,0 +1,50 @@
+name: Build EPUB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-epub:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install EPUB conversion tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pandoc texlive-extra-utils
+          latexpand --version
+          pandoc --version
+
+      - name: Flatten LaTeX includes
+        run: |
+          latexpand --empty-comments faif-2.0.tex > book-expanded.tex
+          sed -i 's/\\includegraphics{KL10_1979}/\\includegraphics{KL10_1979.jpg}/g' book-expanded.tex
+          sed -i 's/\\includegraphics{stignucius}/\\includegraphics{stignucius.jpg}/g' book-expanded.tex
+          test -s book-expanded.tex
+
+      - name: Build EPUB
+        run: |
+          pandoc book-expanded.tex \
+            --from=latex \
+            --to=epub3 \
+            --standalone \
+            --toc \
+            --metadata 'title=Free as in Freedom 2.0: 理查德·斯托曼与自由软件运动' \
+            --metadata 'author=萨姆·威廉姆斯；理查德·斯托曼' \
+            --resource-path=. \
+            --output=free-as-in-freedom-zh-cn.epub
+          test -s free-as-in-freedom-zh-cn.epub
+
+      - name: Upload EPUB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-as-in-freedom-zh-cn-epub
+          path: free-as-in-freedom-zh-cn.epub
+          if-no-files-found: error
+          retention-days: 7
