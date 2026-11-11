@@ -14,18 +14,35 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install EPUB conversion tools
+      - name: Verify Pandoc
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends pandoc texlive-extra-utils
-          latexpand --version
           pandoc --version
 
       - name: Flatten LaTeX includes
         run: |
-          latexpand --empty-comments faif-2.0.tex > book-expanded.tex
-          sed -i 's/\\includegraphics{KL10_1979}/\\includegraphics{KL10_1979.jpg}/g' book-expanded.tex
-          sed -i 's/\\includegraphics{stignucius}/\\includegraphics{stignucius.jpg}/g' book-expanded.tex
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def expand(path, stack=()):
+              path = Path(path)
+              if path in stack:
+                  raise RuntimeError(f"recursive include: {path}")
+              text = path.read_text(encoding="utf-8")
+
+              def replace_include(match):
+                  included = Path(match.group(1))
+                  if included.suffix != ".tex":
+                      included = included.with_suffix(".tex")
+                  return expand(included, stack + (path,))
+
+              text = re.sub(r"\\include\{([^}]+)\}", replace_include, text)
+              text = text.replace(r"\includegraphics{KL10_1979}", r"\includegraphics{KL10_1979.jpg}")
+              text = text.replace(r"\includegraphics{stignucius}", r"\includegraphics{stignucius.jpg}")
+              return text
+
+          Path("book-expanded.tex").write_text(expand(Path("faif-2.0.tex")), encoding="utf-8")
+          PY
           test -s book-expanded.tex
 
       - name: Build EPUB
