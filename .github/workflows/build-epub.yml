@@ -42,6 +42,7 @@ jobs:
           text = expand(Path("faif-2.0.tex"))
           text = re.sub(r"\\ifdefined\\eng\b.*?\\fi", "", text, flags=re.S)
           text = re.sub(r"\\ifdefined\\chs\b(.*?)\\fi", r"\1", text, flags=re.S)
+          text = re.sub(r"\\chapter\[[^\]]+\]\{", r"\\chapter{", text)
           text = text.replace(r"\includegraphics{KL10_1979}", r"\includegraphics{KL10_1979.jpg}")
           text = text.replace(r"\includegraphics{stignucius}", r"\includegraphics{stignucius.jpg}")
           if r"\ifdefined\eng" in text or r"\ifdefined\chs" in text:
